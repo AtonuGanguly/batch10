@@ -47,8 +47,7 @@ pipeline {
                 
                 sh 'mvn clean compile test package';
                 junit '**/test-results/test/*.xml';
-                publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, 
-                             reportDir: ‘coverage’, reportFiles: ‘index.html’, reportName: ‘HTML Report’, reportTitles: ‘Coverage Report’]);
+                publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'coverage', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: 'Coverage Report']);
                 
                 if(params.SONAR_USE){	
                     withSonarQubeEnv('sonar') {
