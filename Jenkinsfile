@@ -73,8 +73,11 @@ pipeline {
             }
         }
 
-	stage('Ansible') {
-            steps {
+		stage('Ansible') {
+            agent {
+                label 'docker-slave'
+            }
+			steps {
 				script{
 					// Ensure the Ansible image is ready to go.
 					ansiblePlaybook credentialsId: 'ansible_aws', inventory: 'inventories/a/hosts', playbook: 'bootcamp10.yml'
