@@ -44,16 +44,19 @@ pipeline {
         stage('Build') {
             steps {
                 git changelog: true, credentialsId: 'atonutcsgit', poll: false , url: 'https://github.com/AtonuGanguly/batch10.git'
-                
-                sh 'mvn clean compile test package';
+                script {
+					sh 'mvn clean compile test package';
+					
+					if(params.SONAR_USE){	
+						withSonarQubeEnv('sonar') {
+							sh 'mvn sonar:sonar -Dsonar.login=3758e748f2851bdbda553bf49188ec7d3ba75208'
+						}
+					}
+				}
                 junit '**/test-results/test/*.xml';
                 publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'coverage', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: 'Coverage Report']);
                 
-                if(params.SONAR_USE){	
-                    withSonarQubeEnv('sonar') {
-                        sh 'mvn sonar:sonar -Dsonar.login=3758e748f2851bdbda553bf49188ec7d3ba75208'
-                    }
-                }
+                
             }
         }
         stage('Docker') {
@@ -61,9 +64,9 @@ pipeline {
                 label 'docker-slave'
             }
             steps {
-               docker.withRegistry('https://hub.docker.com', 'Dockerhub') {
-                   def dockerImage = docker.build("atonuhere/bootcamp10:latest");
-                   dockerImage.push();
+				docker.withRegistry('https://hub.docker.com', 'Dockerhub') {
+					def dockerImage = docker.build("atonuhere/bootcamp10:latest");
+					dockerImage.push();
                 }
             }
         }    
