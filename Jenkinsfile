@@ -64,10 +64,12 @@ pipeline {
                 label 'docker-slave'
             }
             steps {
-				docker.withRegistry('https://hub.docker.com', 'Dockerhub') {
-					def dockerImage = docker.build("atonuhere/bootcamp10:latest");
-					dockerImage.push();
-                }
+				script{
+					docker.withRegistry('https://hub.docker.com', 'Dockerhub') {
+						def dockerImage = docker.build("atonuhere/bootcamp10:latest");
+						dockerImage.push();
+					}
+				}	
             }
         }    
         
@@ -80,6 +82,4 @@ pipeline {
             deleteDir();
         }
     }
-               
-    
 }
