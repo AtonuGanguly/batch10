@@ -28,11 +28,17 @@ pipeline {
         // Install the Maven version configured as "M3" and add it to the path.
         maven "M3"
     }
+	
     options {
 		buildDiscarder(logRotator(numToKeepStr: '5'));
 		timestamps();
 		timeout(time: 10, unit: 'MINUTES');
 		copyArtifactPermission(env.JOB_NAME);
+	}
+	environment {
+		imagename = 'atonuhere/bootcamp10'
+		registryCredential = 'Dockerhub'
+		dockerImage = ''
 	}
 	
 	parameters {
@@ -64,12 +70,15 @@ pipeline {
                 label 'docker-slave'
             }
             steps {
-				script{
-					docker.withRegistry('https://hub.docker.com', 'Dockerhub') {
-						def dockerImage = docker.build("atonuhere/bootcamp10:latest");
-						dockerImage.push();
+				withCredentials([usernamePassword(credentialsId: 'Dockerhub', passwordVariable: 'DOCKER_REGISTRY_PWD', usernameVariable: 'DOCKER_REGISTRY_USER')]) {
+
+					script{
+						sh 'docker login -u="$DOCKER_REGISTRY_USER" -p="$DOCKER_REGISTRY_PWD"';
+						sh "docker build -t ${imagename}:latest";
+						sh "docker push ${imagename}:latest";
+						
 					}
-				}	
+				}				
             }
         }
 
@@ -78,9 +87,13 @@ pipeline {
                 label 'docker-slave'
             }
 			steps {
-				script{
-					// Ensure the Ansible image is ready to go.
-					ansiblePlaybook credentialsId: 'ansible_aws', inventory: 'inventories/a/hosts', playbook: 'bootcamp10.yml'
+				withCredentials([usernamePassword(credentialsId: 'ansible_aws', passwordVariable: 'ANSIBLE_PWD', usernameVariable: 'ANSIBLE_USER')]) {
+					script{
+						sh 'cp ansible/* .';
+						sh 'ansible-playbook vpc-provision.yml -i hosts -vv';
+						sh 'ansible-playbook provision.yml -i hosts -vv';
+						sh 'ansible-playbook bootcamp10.yml -vv --private-key';
+					}
 				}	
             }
         }
