@@ -74,13 +74,13 @@ pipeline {
 						sh "sudo docker login --username=${user} --password=${pass}";
 						sh "sudo docker build -t ${imagename}:latest .";
 						sh "sudo docker push ${imagename}:latest";
-						sh "sudo docker run -id ${imagename}:latest";
+						//sh "sudo docker run -id ${imagename}:latest";
 						
 					}
 				}				
             }
         }
-	stage('Ansible') {
+		stage('Ansible') {
             
 			steps {
 				withCredentials([usernamePassword(credentialsId: 'ansible_aws', passwordVariable: 'ANSIBLE_PWD', usernameVariable: 'ANSIBLE_USER')]) {
