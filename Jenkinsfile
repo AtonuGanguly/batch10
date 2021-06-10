@@ -4,7 +4,7 @@ void sendMail(String SUBJECT,String RECEIPIENTS,String MESSAGE){
 			subject: "${SUBJECT}",
 			to: "${RECEIPIENTS}";*/
 
-	sh "mailx -s \"${SUBJECT}\" ${RECEIPIENTS} <<< \"${MESSAGE}\" ";
+	sh "mailx -s \"${SUBJECT}\"  ${RECEIPIENTS}  < \"${MESSAGE}\" ";
 	
 }
 void sendNotify(){
@@ -21,7 +21,7 @@ void sendNotify(){
 
 pipeline {
     agent {
-        label 'master'
+        label 'docker-slave'
     }
 
     tools {
@@ -33,12 +33,9 @@ pipeline {
 		buildDiscarder(logRotator(numToKeepStr: '5'));
 		timestamps();
 		timeout(time: 10, unit: 'MINUTES');
-		copyArtifactPermission(env.JOB_NAME);
 	}
 	environment {
 		imagename = 'atonuhere/bootcamp10'
-		registryCredential = 'Dockerhub'
-		dockerImage = ''
 	}
 	
 	parameters {
@@ -49,57 +46,54 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                git changelog: true, credentialsId: 'atonutcsgit', poll: false , url: 'https://github.com/AtonuGanguly/batch10.git'
+                git branch: 'master', credentialsId: 'atonutcsgit', url: 'https://github.com/AtonuGanguly/batch10'
                 script {
-					sh 'mvn clean compile test package';
+					sh 'mvn clean compile package';
 					
 					if(params.SONAR_USE){	
 						withSonarQubeEnv('sonar') {
-							sh 'mvn sonar:sonar -Dsonar.login=3758e748f2851bdbda553bf49188ec7d3ba75208'
+						    sh 'mvn test -Dmaven.test.failure.ignore=true';
+						    sh 'ls -lR target';
+							sh 'mvn sonar:sonar -Dsonar.login=9f27722ccb323b764046a51f1c6b0723a3f6d701';
 						}
 					}
 				}
-                junit '**/test-results/test/*.xml';
-                publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'coverage', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: 'Coverage Report']);
+				
+                junit 'target/surefire-reports/*.xml';
+                publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'target/surefire-reports', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: ''])
                 
                 
             }
         }
         stage('Docker') {
-            agent {
-                label 'docker-slave'
-            }
+            
             steps {
-				withCredentials([usernamePassword(credentialsId: 'Dockerhub', passwordVariable: 'DOCKER_REGISTRY_PWD', usernameVariable: 'DOCKER_REGISTRY_USER')]) {
-
-					script{
-						sh 'docker login -u="$DOCKER_REGISTRY_USER" -p="$DOCKER_REGISTRY_PWD"';
-						sh "docker build -t ${imagename}:latest";
-						sh "docker push ${imagename}:latest";
+				withCredentials([usernamePassword(credentialsId: 'dockerhub', passwordVariable: 'pass', usernameVariable: 'user')]) {
+                    script{
+						sh 'ls -lR';
+						sh "sudo docker login --username=${user} --password=${pass}";
+						sh "sudo docker build -t ${imagename}:latest .";
+						sh "sudo docker push ${imagename}:latest";
+						sh "sudo docker run -id ${imagename}:latest";
 						
 					}
 				}				
             }
         }
-
-		stage('Ansible') {
-            agent {
-                label 'docker-slave'
-            }
+	stage('Ansible') {
+            
 			steps {
 				withCredentials([usernamePassword(credentialsId: 'ansible_aws', passwordVariable: 'ANSIBLE_PWD', usernameVariable: 'ANSIBLE_USER')]) {
 					script{
-						sh 'cp ansible/* .';
-						sh 'ansible-playbook vpc-provision.yml -i hosts -vv';
-						sh 'ansible-playbook provision.yml -i hosts -vv';
+						dir('ansible'){
+							sh 'ansible-playbook vpc-provision.yml -i hosts -vv';
+							sh 'ansible-playbook provision.yml -i hosts -vv';
+						}
 						sh 'ansible-playbook bootcamp10.yml -vv --private-key';
 					}
 				}	
             }
         }
-				
-        
-        
     }
     post { 
         always { 
@@ -108,6 +102,4 @@ pipeline {
             deleteDir();
         }
     }
-               
-    
-}
+}    
