@@ -83,14 +83,13 @@ pipeline {
 		stage('Ansible') {
             
 			steps {
-				withCredentials([usernamePassword(credentialsId: 'ansible_aws', passwordVariable: 'ANSIBLE_PWD', usernameVariable: 'ANSIBLE_USER')]) {
-					script{
-						dir('ansible'){
-							sh 'ansible-playbook vpc-provision.yml -i hosts -vv';
-							sh 'ansible-playbook provision.yml -i hosts -vv';
-						}
-						sh 'ansible-playbook bootcamp10.yml -vv --private-key';
+				script{
+					dir('ansible'){
+						sh 'ansible-playbook vpc-provision.yml -i hosts -vv';
+						sh 'ansible-playbook provision.yml -i hosts -vv';
 					}
+					sh 'ansible-playbook bootcamp10.yml -vv --private-key';
+					
 				}	
             }
         }
